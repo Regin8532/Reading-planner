@@ -1,0 +1,64 @@
+(() => {
+'use strict';
+const KEY='tamilBibleTracker.v1';
+const $=id=>document.getElementById(id);
+const plan=Array.isArray(window.READING_PLAN)?window.READING_PLAN:[];
+const todayISO=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+const dateObj=s=>{if(!s)return null;const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d,12)};
+const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const shift=(s,n)=>{const d=dateObj(s);d.setDate(d.getDate()+n);return iso(d)};
+const dayForDate=(date,start)=>Math.floor((dateObj(date)-dateObj(start))/86400000)+1;
+const escapeHTML=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const defaultState=()=>({version:1,startDate:'',completed:{},notes:{},theme:'light',settings:{}});
+let state=defaultState(),filter='all',selectedDay=1,calendarDate=new Date();
+function load(){try{const raw=localStorage.getItem(KEY);if(raw){const x=JSON.parse(raw);if(x&&x.version===1&&typeof x==='object')state={...defaultState(),...x,completed:x.completed||{},notes:x.notes||{}}}}catch(e){toast('சேமித்த தரவை வாசிக்க முடியவில்லை. காப்புப்பிரதியை இறக்குமதி செய்யவும்.')}document.body.classList.toggle('dark',state.theme==='dark')}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state));return true}catch(e){toast('சேமிப்பு கிடைக்கவில்லை. JSON காப்புப்பிரதி எடுக்கவும்.');return false}}
+function currentDay(){return state.startDate?dayForDate(todayISO(),state.startDate):1}
+function reading(d){return plan[d-1]||{day:d,reading:'Reading விவரம் கிடைக்கவில்லை',verses:null,minutes:null,reflection:''}}
+function isDone(d){return !!state.completed[d]}
+function completedCount(){return Object.keys(state.completed).filter(k=>state.completed[k]&&+k>=1&&+k<=300).length}
+function streaks(){const dates=new Set(Object.values(state.completed).filter(Boolean).map(v=>typeof v==='string'?v:v.date).filter(Boolean));let longest=0,run=0;const sorted=[...dates].sort();for(let i=0;i<sorted.length;i++){run=i&&shift(sorted[i-1],1)===sorted[i]?run+1:1;longest=Math.max(longest,run)}let cur=0,at=todayISO();if(!dates.has(at))at=shift(at,-1);while(dates.has(at)){cur++;at=shift(at,-1);if(cur>1000)break}return{current:cur,longest}}
+function completedMinutes(){return Object.keys(state.completed).reduce((sum,k)=>{const v=state.completed[k];return v?sum+(Number(reading(+k).minutes)||0):sum},0)}
+function setDone(d,done){if(done)state.completed[d]={date:todayISO()};else delete state.completed[d];save();render();toast(done?'Reading முடித்ததாகச் சேமிக்கப்பட்டது':'முடித்த நிலை நீக்கப்பட்டது')}
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove('show'),2600)}
+function openDetail(d){selectedDay=d;const r=reading(d),n=state.notes[d]||{}; $('detailContent').innerHTML=`
+<div class="eyebrow">தினசரி Reading · ${d} / 300</div><h2 class="detail-title" id="detailTitle">நாள் ${d}</h2>
+<div class="detail-ref">${escapeHTML(r.reading)}</div><div class="meta-row"><span>📖 ${r.verses??'—'} வசனங்கள்</span><span>◷ ${r.minutes??'—'} நிமிடங்கள்</span><span>${isDone(d)?'✓ முடிக்கப்பட்டது':'○ இன்னும் முடிக்கவில்லை'}</span></div>
+${r.reflection?`<div class="reflection">${escapeHTML(r.reflection)}</div>`:'<p class="muted">இந்த நாளுக்கான சிந்தனை PDF உரையிலிருந்து தெளிவாகப் பெறப்படவில்லை.</p>'}
+<label for="noteText">என் Notes</label><textarea class="note-field" id="noteText" placeholder="வாசிப்பில் கவனித்தவை…">${escapeHTML(n.note||'')}</textarea>
+<label for="verseText">வேத வசனக் குறிப்பு</label><input class="note-field" id="verseText" placeholder="எ.கா. ஆதியாகமம் 1:1" value="${escapeHTML(n.verse||'')}">
+<label for="prayerText">என் Prayer</label><textarea class="note-field" id="prayerText" placeholder="இன்றைய Prayer…">${escapeHTML(n.prayer||'')}</textarea>
+<label for="takeawayText">கற்றுக்கொண்ட பாடம்</label><textarea class="note-field" id="takeawayText" placeholder="Today நான் எடுத்துக்கொள்ளும் பாடம்…">${escapeHTML(n.takeaway||'')}</textarea>
+<div class="button-row"><button class="primary" id="saveNoteBtn">குறிப்புகளைச் சேமி</button><button class="${isDone(d)?'secondary':'primary'}" id="detailDoneBtn">${isDone(d)?'✓ முடித்த நிலையை நீக்கு':'வாசிப்பை முடித்தேன்'}</button></div>
+<div class="button-row"><button class="secondary" id="prevDay">← முந்தைய நாள்</button><button class="secondary" id="nextDay">அடுத்த நாள் →</button></div>`;
+$('detailModal').classList.remove('hidden');
+$('saveNoteBtn').onclick=()=>{state.notes[d]={note:$('noteText').value,verse:$('verseText').value,prayer:$('prayerText').value,takeaway:$('takeawayText').value};if(!Object.values(state.notes[d]).some(v=>v.trim()))delete state.notes[d];save();render();toast('Notes இந்தச் சாதனத்தில் சேமிக்கப்பட்டன')};
+$('detailDoneBtn').onclick=()=>{setDone(d,!isDone(d));openDetail(d)};
+$('prevDay').onclick=()=>{if(d>1)openDetail(d-1)};$('nextDay').onclick=()=>{if(d<300)openDetail(d+1)};
+}
+function renderToday(){const d=currentDay(),started=!!state.startDate,r=reading(Math.min(300,Math.max(1,d)));$('todayDate').textContent=new Date().toLocaleDateString('ta-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});$('dayBadge').textContent=d<1?`தொடங்க ${1-d} நாள்`:`நாள் ${Math.min(300,d)} / 300`;
+if(!started){$('todayCard').innerHTML='<h3>உங்கள் பயணத்தைத் தொடங்குங்கள்</h3><p class="muted">தொடக்கத் தேதியைத் தேர்ந்தெடுக்க அமைப்புகளைத் திறக்கவும்.</p>';return}
+if(d>300){$('todayCard').innerHTML='<h3>✦ 300 நாள் பயணம் நிறைவு!</h3><p>உங்கள் Readingப் பயணத்தை வாழ்த்துகிறோம். நீங்கள் விரும்பினால் புதிய தொடக்கத் தேதியுடன் மீண்டும் தொடங்கலாம்.</p>';return}
+if(d<1){$('todayCard').innerHTML=`<h3>தொடங்க இன்னும் ${1-d} நாள்</h3><p>திட்டம் ${escapeHTML(state.startDate)} அன்று தொடங்கும். இதற்கிடையில் எந்த நாளையும் திறந்து முன்னதாக வாசிக்கலாம்.</p>`;return}
+$('todayCard').innerHTML=`<div class="reading-top"><div class="day-number">${d}</div><div><h3>நாள் ${d} Reading</h3><div class="reading-ref">${escapeHTML(r.reading)}</div><div class="meta-row"><span>📖 ${r.verses??'—'} வசனங்கள்</span><span>◷ ${r.minutes??'—'} நிமிடங்கள்</span>${isDone(d)?'<span>✓ முடிக்கப்பட்டது</span>':''}</div></div></div>${r.reflection?`<div class="reflection">${escapeHTML(r.reflection)}</div>`:''}<div class="button-row"><button id="startReading" class="primary">வாசிப்பைத் தொடங்கு ↗</button><button id="markToday" class="${isDone(d)?'secondary':'primary'}">${isDone(d)?'✓ முடித்த நிலையை நீக்கு':'Mark Complete'}</button></div>`;
+$('startReading').onclick=()=>openDetail(d);$('markToday').onclick=()=>setDone(d,!isDone(d))}
+function renderStats(){const c=completedCount(),s=streaks();$('completedCount').textContent=`${c} / 300`;$('remainingCount').textContent=`${300-c} நாட்கள் மீதம்`;$('percent').textContent=`${Math.round(c/3)}%`;$('progressBar').style.width=`${c/3}%`;$('streak').textContent=s.current;$('longest').textContent=s.longest;$('minutesTotal').textContent=`${completedMinutes()} நிமிடங்கள் Reading`}
+function renderList(){const d=currentDay(),q=$('searchInput').value.trim().toLocaleLowerCase();const list=plan.filter(r=>{const done=isDone(r.day),today=r.day===d;return(filter==='all'||filter==='completed'&&done||filter==='pending'&&!done||filter==='today'&&today)&&(!q||String(r.day).includes(q)||r.reading.toLocaleLowerCase().includes(q)||String(r.minutes||'').includes(q))});$('daysList').innerHTML=list.map(r=>`<button class="day-item ${isDone(r.day)?'done':''} ${r.day===d?'today':''}" data-day="${r.day}"><span class="day-chip">${isDone(r.day)?'✓':r.day}</span><span class="day-info"><strong>நாள் ${r.day}${r.day===d?' · Today':''}${state.notes[r.day]?' <span class="note-dot">✎</span>':''}</strong><span>${escapeHTML(r.reading)}</span><span>${r.minutes?`${r.minutes} நிமி`:'நேரம் குறிப்பிடப்படவில்லை'} · ${isDone(r.day)?'முடித்தது':'நிலுவை'}</span></span><span class="status">${isDone(r.day)?'✓':'›'}</span></button>`).join('')||'<p class="muted">பொருத்தமான Reading நாட்கள் இல்லை.</p>';document.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>openDetail(+b.dataset.day))}
+function renderCalendar(){const y=calendarDate.getFullYear(),m=calendarDate.getMonth();$('monthLabel').textContent=calendarDate.toLocaleDateString('ta-IN',{month:'long',year:'numeric'});const first=new Date(y,m,1),days=new Date(y,m+1,0).getDate(),offset=(first.getDay()+6)%7;let html=['தி','செ','பு','வி','வெ','ச','ஞ'].map(x=>`<div class="cal-cell heading">${x}</div>`).join('');for(let i=0;i<offset;i++)html+='<div class="cal-cell"></div>';for(let n=1;n<=days;n++){const date=iso(new Date(y,m,n)),d=state.startDate?dayForDate(date,state.startDate):0,done=d>=1&&d<=300&&isDone(d),today=date===todayISO(),future=date>todayISO();html+=`<div class="cal-cell ${done?'done':''} ${today?'today':''} ${future?'future':''}" title="${d>=1&&d<=300?'நாள் '+d:''}">${n}${done?' ✓':''}</div>`}$('calendarGrid').innerHTML=html}
+function render(){renderToday();renderStats();renderList();renderCalendar();$('mainContent').classList.toggle('hidden',!state.startDate);$('welcome').classList.toggle('hidden',!!state.startDate);$('welcomeDate').value=state.startDate||todayISO();$('settingsDate').value=state.startDate||todayISO();$('storageNotice').textContent=(()=>{try{localStorage.setItem('__test','1');localStorage.removeItem('__test');return 'சேமிப்பு: இந்த உலாவியில் மட்டும். அவ்வப்போது JSON காப்புப்பிரதி எடுக்கவும்.'}catch(e){return 'இந்த உலாவியில் உள்ளூர் சேமிப்பு கிடைக்கவில்லை.'}})()}
+$('beginBtn').onclick=()=>{if(!$('welcomeDate').value)return toast('தொடக்கத் தேதியைத் தேர்ந்தெடுக்கவும்');state.startDate=$('welcomeDate').value;save();render()};
+$('settingsBtn').onclick=()=>$('settingsModal').classList.remove('hidden');
+$('saveSettings').onclick=()=>{if(!$('settingsDate').value)return toast('தேதியைத் தேர்ந்தெடுக்கவும்');state.startDate=$('settingsDate').value;save();$('settingsModal').classList.add('hidden');render();toast('Settings சேமிக்கப்பட்டன')};
+$('themeBtn').onclick=()=>{state.theme=state.theme==='dark'?'light':'dark';document.body.classList.toggle('dark',state.theme==='dark');save()};
+$('exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify({...state,exportedAt:new Date().toISOString(),scheduleVersion:1},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`tamil-bible-progress-${todayISO()}.json`;a.click();URL.revokeObjectURL(a.href);toast('காப்புப்பிரதி பதிவிறக்கப்பட்டது')};
+$('importFile').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{const x=JSON.parse(await file.text());if(!x||x.version!==1||typeof x.completed!=='object'||typeof x.notes!=='object'||(x.startDate&&!/^\d{4}-\d{2}-\d{2}$/.test(x.startDate)))throw Error('invalid');for(const k of Object.keys(x.completed))if(!/^\d+$/.test(k)||+k<1||+k>300)throw Error('invalid');if(!confirm('இறக்குமதி தற்போதைய முன்னேற்றத்தை மாற்றும். தொடரவா?'))return;state={...defaultState(),...x,completed:x.completed,notes:x.notes};save();render();$('settingsModal').classList.add('hidden');toast('காப்புப்பிரதி வெற்றிகரமாக இறக்குமதி செய்யப்பட்டது')}catch(err){toast('இந்த JSON காப்புப்பிரதி செல்லுபடியாகவில்லை. தற்போதைய தரவு மாற்றப்படவில்லை.')}finally{e.target.value=''}};
+$('restartBtn').onclick=()=>{if(confirm('உங்கள் முடித்த நாட்கள் மற்றும் Notes அனைத்தையும் நீக்கி மீண்டும் தொடங்கவா? முதலில் JSON காப்புப்பிரதி எடுக்க பரிந்துரைக்கப்படுகிறது.')){state=defaultState();save();$('settingsModal').classList.add('hidden');render();toast('Progress மீட்டமைக்கப்பட்டது')}};
+$('filters').onclick=e=>{const b=e.target.closest('[data-filter]');if(!b)return;filter=b.dataset.filter;document.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x===b));renderList()};
+$('searchInput').oninput=renderList;
+$('calendarBtn').onclick=()=>{$('calendarPanel').classList.toggle('hidden');$('calendarPanel').scrollIntoView({behavior:'smooth',block:'start'})};
+$('prevMonth').onclick=()=>{calendarDate.setMonth(calendarDate.getMonth()-1);renderCalendar()};$('nextMonth').onclick=()=>{calendarDate.setMonth(calendarDate.getMonth()+1);renderCalendar()};
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).classList.add('hidden'));
+['detailModal','settingsModal'].forEach(id=>$(id).addEventListener('click',e=>{if(e.target.id===id)e.target.classList.add('hidden')}));
+load();render();
+if('serviceWorker'in navigator && location.protocol!=='file:'){window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}))}
+})();

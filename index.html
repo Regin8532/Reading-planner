@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ta">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#142a35">
+<meta name="description" content="தனிப்பட்ட தமிழ் வேதாகம 300 நாள் Reading கண்காணிப்பி">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./assets/icon-192.png">
+<link rel="stylesheet" href="./styles.css">
+<title>Tamil Bible · 300 நாள்</title>
+</head>
+<body>
+<div class="app-shell">
+<header class="topbar">
+  <div class="brand-mark" aria-hidden="true">✝</div>
+  <div class="brand"><h1>Tamil Bible</h1><p>300-Day Reading Tracker</p></div>
+  <button id="themeBtn" class="icon-btn" aria-label="தோற்றத்தை மாற்று" title="Theme">☼</button>
+  <button id="settingsBtn" class="icon-btn" aria-label="Settings" title="Settings">⚙</button>
+</header>
+<main>
+<section id="welcome" class="panel welcome hidden">
+  <div class="eyebrow">உங்கள் தனிப்பட்ட பயணம்</div><h2>ஒரு நாளில் ஒரு படி.</h2>
+  <p>உங்கள் Readingப் பயணத்தின் தொடக்க நாளைத் தேர்ந்தெடுக்கவும். உங்கள் Progress இந்தச் சாதனத்திலேயே சேமிக்கப்படும்.</p>
+  <label for="welcomeDate">தொடக்க தேதி</label><input id="welcomeDate" type="date">
+  <button id="beginBtn" class="primary">என் பயணத்தைத் தொடங்கு</button>
+</section>
+<div id="mainContent">
+<section class="hero">
+  <div class="hero-copy"><div class="eyebrow">இன்றைய அமைதியான நேரம்</div><h2>வார்த்தையில் நிலைத்திருங்கள்.</h2><p id="todayDate"></p></div>
+  <div class="hero-art" aria-hidden="true"><div class="sun"></div><div class="book">✦</div><span>அமைதி · நம்பிக்கை · வளர்ச்சி</span></div>
+</section>
+<section class="section-head"><div><div class="eyebrow">உங்கள் பயணம்</div><h2>Progress</h2></div><span id="dayBadge" class="pill">நாள் — / 300</span></section>
+<section class="stats-grid">
+  <article class="stat-card"><span class="stat-icon">✧</span><span class="stat-label">முடித்த நாட்கள்</span><strong id="completedCount">0 / 300</strong><small id="remainingCount">300 நாட்கள் மீதம்</small></article>
+  <article class="stat-card"><span class="stat-icon">◷</span><span class="stat-label">மொத்த Progress</span><strong id="percent">0%</strong><div class="progress-track"><div id="progressBar" class="progress-fill"></div></div></article>
+  <article class="stat-card"><span class="stat-icon">♨</span><span class="stat-label">தொடர் நாட்கள்</span><strong id="streak">0</strong><small>தற்போதைய தொடர்</small></article>
+  <article class="stat-card"><span class="stat-icon">✦</span><span class="stat-label">நீண்ட தொடர்</span><strong id="longest">0</strong><small id="minutesTotal">0 நிமிடங்கள் Reading</small></article>
+</section>
+<section class="section-head"><div><div class="eyebrow">Today's Reading</div><h2>வார்த்தையுடன் நேரம்</h2></div></section>
+<section id="todayCard" class="reading-card"></section>
+<section class="section-head"><div><div class="eyebrow">உங்கள் பதிவுகள்</div><h2>Reading நாட்கள்</h2></div><button id="calendarBtn" class="text-btn">காலண்டர் ↗</button></section>
+<section class="toolbar">
+  <div class="filters" id="filters"><button class="filter active" data-filter="all">All</button><button class="filter" data-filter="completed">Completed</button><button class="filter" data-filter="pending">நிலுவை</button><button class="filter" data-filter="today">Today</button></div>
+  <input id="searchInput" type="search" placeholder="நாள் / புத்தகம் / அதிகாரம் தேடவும்…" aria-label="Search readings">
+</section>
+<section id="daysList" class="days-list"></section>
+<section id="calendarPanel" class="panel hidden">
+  <div class="calendar-head"><button id="prevMonth" class="icon-btn">‹</button><h3 id="monthLabel"></h3><button id="nextMonth" class="icon-btn">›</button></div>
+  <div class="calendar-grid" id="calendarGrid"></div>
+</section>
+<section class="section-head"><div><div class="eyebrow">தனிப்பட்ட சிந்தனை</div><h2>உங்கள் Notes</h2></div></section>
+<section class="panel privacy-panel"><span class="large-icon">⌁</span><div><h3>உங்களுக்கே உரிய Notes</h3><p>உங்கள் Notes, ஜெபங்கள் மற்றும் Progress இந்த உலாவியின் LocalStorage-ல் மட்டுமே இருக்கும். அவற்றை வேறு சாதனத்துக்கு மாற்ற JSON காப்புப்பிரதியை ஏற்றுமதி செய்யவும்.</p></div></section>
+</div>
+</main>
+<footer>அமைதியாக வாசியுங்கள் · தினமும் ஒரு படி <span>✦</span></footer>
+</div>
+<div id="detailModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+ <div class="modal-card detail-modal"><button class="close-btn" data-close="detailModal" aria-label="Close">×</button><div id="detailContent"></div></div>
+</div>
+<div id="settingsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+ <div class="modal-card"><button class="close-btn" data-close="settingsModal" aria-label="Close">×</button><div class="eyebrow">தனிப்பயனாக்கம்</div><h2 id="settingsTitle">Settings</h2>
+ <label for="settingsDate">திட்டத்தின் தொடக்க தேதி</label><input id="settingsDate" type="date">
+ <p class="muted">தொடக்கத் தேதியை மாற்றுவது ஏற்கனவே முடித்த நாட்களை அழிக்காது.</p>
+ <div class="button-row"><button id="saveSettings" class="primary">சேமி</button><button id="exportBtn" class="secondary">JSON ஏற்றுமதி</button></div>
+ <label class="file-label">காப்புப்பிரதியை இறக்குமதி செய்யவும்<input id="importFile" type="file" accept="application/json,.json"></label>
+ <button id="restartBtn" class="danger">முன்னேற்றத்தை மீட்டமை</button>
+ <p id="storageNotice" class="muted"></p>
+ </div>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="./reading-plan.js"></script><script src="./app.js"></script>
+</body></html>
